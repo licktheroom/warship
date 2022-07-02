@@ -1,6 +1,21 @@
 /**
+    Warship, a simple, textureless game.
+    Copyright (C) 2022  licktheroom
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/gpl-3.0.txt>.
  *
- * Warship by Licktheroom
+ *
  * Version 0.0.1
  *
  * This will remain version 0.0.1 until it has somewhat caught upto the original SDL version.
@@ -121,6 +136,8 @@ int main()
     //g_blue_ships[0].controlled = false;
 
     //update_children(&g_blue_ships[0]);
+
+    fprintf(stdout, "Warship  Copyright (C) 2022  licktheroom\nThis program comes with ABSOLUTELY NO WARRANTY; for details please see LICENSE.\nThis is free software, and you are welcome to redistribute it\nunder certain conditions; please see LICENSE\n\n");
 
     LOGS_init();
 
