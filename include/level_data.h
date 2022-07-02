@@ -1,3 +1,5 @@
+// Copyright (C) 2022  licktheroom //
+
 #ifndef LEVEL_DATA_HEADER
 #define LEVEL_DATA_HEADER
 
