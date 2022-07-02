@@ -1,3 +1,4 @@
+# // Copyright (C) 2022  licktheroom // #
 # new file!
 # basically the same!
 
