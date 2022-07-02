@@ -1,3 +1,5 @@
+// Copyright (C) 2022  licktheroom //
+
 #include "include/vector.h"
 
 #include <math.h>
