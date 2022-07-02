@@ -1,3 +1,5 @@
+// Copyright (C) 2022  licktheroom //
+
 #ifndef ENUM_HEADER
 #define ENUM_HEADER
 
