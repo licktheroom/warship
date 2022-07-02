@@ -1,3 +1,5 @@
+// Copyright (C) 2022  licktheroom //
+
 #ifndef SHIP_OFFSET_HEADER
 #define SHIP_OFFSET_HEADER
 
