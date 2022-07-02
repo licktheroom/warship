@@ -1,3 +1,5 @@
+// Copyright (C) 2022  licktheroom //
+
 #ifndef FRAGMENT_SHADER_HEADER
 #define FRAGMENT_SHADER_HEADER
 
