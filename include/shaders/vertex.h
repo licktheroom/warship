@@ -1,3 +1,5 @@
+// Copyright (C) 2022  licktheroom //
+
 #ifndef VERTEX_SHADER_HEADER
 #define VERTEX_SHADER_HEADER
 // this isn't fun to read
