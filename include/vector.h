@@ -1,3 +1,5 @@
+// Copyright (C) 2022  licktheroom //
+
 #ifndef VECTOR_HEADER
 #define VECTOR_HEADER
 
