@@ -1,3 +1,5 @@
+// Copyright (C) 2022  licktheroom //
+
 #include "include/logging.h"
 
 #include <stdio.h>
