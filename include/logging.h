@@ -1,4 +1,6 @@
 /*
+ * // Copyright (C) 2022  licktheroom //
+ *
  * logging does not mean tracking
  *
  * this is just used for local logs, very useful when debugging
