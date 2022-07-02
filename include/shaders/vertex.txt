@@ -1,0 +1,22 @@
+#version 330 core
+layout (location = 0) in vec2 aPos;
+
+uniform ivec2 scn;
+uniform ivec2 pos[1500];
+
+uniform float scale;
+
+void main()
+{
+    finished += pos[gl_InstanceID];
+
+    finished.x *= scale;
+    finished.y *= scale;
+
+    finished /= scn;
+
+    finished.x = -1 + finished.x;
+    finished.y = 1 - finished.y;
+
+    gl_Position = vec4(finished, 0.0f, 1.0f);
+}
