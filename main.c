@@ -30,7 +30,7 @@
  *      make CFLAGS=-D<option> CFLAGS+=<option2> CFLAGS+=<option3>
  *
  * Options:
- *      NO_PRINT - Disables most debug prints, including loading times and FPS printout.
+        NO_TERMINAL - forces logging to file
  *
 **/
 
@@ -55,6 +55,8 @@
 #include <stdbool.h>
 
 /* Static values */
+
+static FILE * log_file;
 
 static unsigned int VAO, VBO, EBO, s_program;
 static unsigned int vertex_uniform_size;
@@ -122,81 +124,64 @@ int main()
 
     g_ship_controlled = -1; // -1 is a base value
 
-    // test values
-    
     load_level(0);
 
-    //g_num_blue_ships = 1;
-    //g_num_red_ships = 0;
+#ifndef NO_TERMINAL
+    log_file = LOGS_get_log_file(0);
+#else
+    log_file = LOGS_get_log_file(2);
+#endif
 
-    //g_blue_ships[0].position.x = 9;
-    //g_blue_ships[0].position.y = 5;
-
-    //g_blue_ships[0].type = SHIP_TYPE_SCOUT;
-    //g_blue_ships[0].controlled = false;
-
-    //update_children(&g_blue_ships[0]);
-
-    fprintf(stdout, "Warship  Copyright (C) 2022  licktheroom\nThis program comes with ABSOLUTELY NO WARRANTY; for details please see LICENSE.\nThis is free software, and you are welcome to redistribute it\nunder certain conditions; please see LICENSE\n\n");
-
-    LOGS_init();
+    fprintf(log_file, "\nWarship  Copyright (C) 2022  licktheroom\nThis program comes with ABSOLUTELY NO WARRANTY; for details please see LICENSE.\nThis is free software, and you are welcome to redistribute it\nunder certain conditions; please see LICENSE.\n\n");
 
     // continue normally
-#ifndef NO_PRINT
     unsigned int fps_tracker = 0;
     double fps_track;
 
     double app_start, start, finish;
 
     // create window
-    fprintf(stdout, "Starting Warship v0.0.1 by licktheroom.\n\n");
-    fprintf(stdout, "Creating window... ");
-    fflush(stdout);
+    fprintf(log_file, "Starting Warship v0.0.1 by licktheroom.\n\n");
+    fprintf(log_file, "Creating window... ");
+    fflush(log_file);
 
     app_start = start = glfwGetTime();
-#endif
 
     GLFWwindow * window = create_window(g_scn.x, g_scn.y, "Warship v0.0.1");
 
-#ifndef NO_PRINT
     finish = glfwGetTime();
 
-    fprintf(stdout, "%fms\n", (finish - start) * 1000);
+    fprintf(log_file, "%fms\n", (finish - start) * 1000);
 
     // load buffers
-    fprintf(stdout, "Generating vertex buffers... ");
-    fflush(stdout);
+    fprintf(log_file, "Generating vertex buffers... ");
+    fflush(log_file);
 
     start = glfwGetTime();
-#endif
 
     generate_buffers();
 
-#ifndef NO_PRINT
     finish = glfwGetTime();
 
-    fprintf(stdout, "%fms\n", (finish - start) * 1000);
+    fprintf(log_file, "%fms\n", (finish - start) * 1000);
 
     // load shaders
-    fprintf(stdout, "Compiling shaders... ");
-    fflush(stdout);
+    fprintf(log_file, "Compiling shaders... ");
+    fflush(log_file);
 
     start = glfwGetTime();
-#endif
 
     create_shader_program();
 
-#ifndef NO_PRINT
     finish = glfwGetTime();
 
-    fprintf(stdout, "%fms\n", (finish - start) * 1000);
+    fprintf(log_file, "%fms\n", (finish - start) * 1000);
 
     // game loop
 
     fps_track = glfwGetTime();
-#endif
 
-    fprintf(stdout, "Loading successful.\n\nUse the number keys (0-9) to switch between test levels.\n\n");
+    fprintf(log_file, "Loading successful.\n\nUse the number keys (0-9) to switch between test levels.\n\n");
 
     double phy_beginning, phy_current;
 
@@ -247,7 +232,6 @@ int main()
         glfwSwapBuffers(window);
         glfwPollEvents();
 
-#ifndef NO_PRINT
         fps_tracker++;
 
         finish = glfwGetTime();
@@ -255,21 +239,18 @@ int main()
         {
             fps_track = finish;
 
-            fprintf(stdout, "\rFPS: %d", fps_tracker);
-            fflush(stdout);
+            fprintf(log_file, "\rFPS: %d", fps_tracker);
+            fflush(log_file);
 
             fps_tracker = 0;
         }
-#endif
     }
 
     // die
 
-#ifndef NO_PRINT
     finish = glfwGetTime();
 
-    fprintf(stdout, "\n\nApp was alive for: %f seconds\n", finish-app_start);
-#endif
+    fprintf(log_file, "\n\nApp was alive for: %f seconds\n", finish-app_start);
 
     clean_up(0);
 }
@@ -290,9 +271,11 @@ void clean_up(int n)
 
     // report exit status
     if(n > 0)
-        fprintf(stderr, "There was an error, exiting with code: %d\nPlease refer to \"error_codes.txt\".\n", n);
+        fprintf(log_file, "There was an error, exiting with code: %d\nPlease refer to \"error_codes.txt\".\n", n);
     else
-        fprintf(stdout, "Exit successful.\n");
+        fprintf(log_file, "Exit successful.\n");
+
+    fclose(log_file);
 
     exit(n);
 }
