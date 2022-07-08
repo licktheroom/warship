@@ -5,17 +5,54 @@
 #include <stdio.h>
 #include <string.h>
 
-void LOGS_init()
+FILE * LOGS_get_log_file(int n)
 {
-    fprintf(stdout, "No log setting found, please select:\n(T)erminal, (F)ile, (B)oth: ");
-    char in = (char)getchar();
+    char in = '\0';
 
-    // odd bug where this prints twice when giving it something invalid, not sure why
-    while(in != 't' && in != 'T' && in != 'f' && in != 'F' && in != 'b' && in != 'B')
+    if(n == 0)
     {
-        fprintf(stdout, "\nInvalid setting, please select:\n(T)erminal, (F)ile, (B)oth: ");
+        // to be updated to actually read options
+        fprintf(stdout, "No log setting found, please select:\n(T)erminal, (F)ile: ");
         in = (char)getchar();
+
+        // odd bug where this prints twice when giving it something invalid, not sure why
+        while(in != 't' && in != 'T' && in != 'f' && in != 'F')
+        {
+            fprintf(stdout, "\nInvalid setting, please select:\n(T)erminal, (F)ile: ");
+            in = (char)getchar();
+        }
+
+        // check for save
+        fprintf(stdout, "Would you like to save this setting? (Y)es\\(N)o: ");
+
+        char save = (char)getchar();
+
+        // this does the same bug as above
+        while(save != 'y' && save != 'Y' && save != 'n' && save != 'N')
+        {
+            fprintf(stdout, "\nInvalid setting, please select (Y)es\\(N)o: ");
+
+            save = (char)getchar();
+        }
+
+        if(save == 'y' || save == 'Y')
+            fprintf(stdout, "not saved anyway\n");
+
+    } else
+    {
+        if(n == 0)
+            in = 't';
+        else
+            in = 'f';
     }
 
+    if(in == 'F' || in == 'f')
+    {
+        FILE * fe = fopen("logs.txt", "w");
+        fseek(fe, 0, SEEK_SET);
 
+        return fe;
+
+    } else
+        return stdout;
 }
