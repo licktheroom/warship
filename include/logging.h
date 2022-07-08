@@ -8,6 +8,8 @@
 #ifndef LOGGING_HEADER
 #define LOGGING_HEADER
 
-void LOGS_init();
+#include <stdio.h>
+
+FILE * LOGS_get_log_file(int n);
 
 #endif
