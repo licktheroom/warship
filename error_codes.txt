@@ -12,3 +12,6 @@ Code 4:
 
 Code 5:
     Issue with linking the shader program.
+
+Code 6:
+    Couldn't open log file.
