@@ -21,7 +21,8 @@
  * This will remain version 0.0.1 until it has somewhat caught upto the original SDL version.
  *
  * Huge thanks to learnopengl.com!
- * Am I doing a good job at documenation?
+ *
+ * I keep forgetting to add comments to my code.
  *
  * Use options like this:
  *      make CFLAGS=-D<option>
@@ -44,6 +45,7 @@
 #include "include/ship_offsets.h"
 #include "include/level_data.h"
 #include "include/logging.h"
+#include "include/physics.h"
 
 #include "include/shaders/vertex.h"
 #include "include/shaders/fragment.h"
@@ -94,9 +96,6 @@ void game_physics();
 
 void check_mouse_col();
 
-void update_children(Ship * sh);
-void ship_move(Ship * sh);
-
 // rendering
 
 void update_buffer(int which);
@@ -119,7 +118,7 @@ int main()
     g_scn.x = 1200;
     g_scn.y = 600;
 
-    g_pixel_scale = 1.0; // pixel scale, used to be known as pixel size
+    g_pixel_scale = 1.0; // pixel scale, used to be known as pixel size, dictates how big each pixel should be
     g_state = 1;
 
     g_ship_controlled = -1; // -1 is a base value
@@ -128,8 +127,14 @@ int main()
 
 #ifndef NO_TERMINAL
     log_file = LOGS_get_log_file(0);
+
+    if(log_file == NULL)
+        clean_up(6);
 #else
     log_file = LOGS_get_log_file(2);
+
+    if(log_file == NULL)
+        clean_up(6);
 #endif
 
     fprintf(log_file, "\nWarship  Copyright (C) 2022  licktheroom\nThis program comes with ABSOLUTELY NO WARRANTY; for details please see LICENSE.\nThis is free software, and you are welcome to redistribute it\nunder certain conditions; please see LICENSE.\n\n");
@@ -405,31 +410,42 @@ void load_level(int level_n)
         for(int i = 0; i < g_num_blue_ships; i++)
         {
             g_blue_ships[i].position = lev_data.blue_ships[i].pos;
-	    g_blue_ships[i].type = lev_data.blue_ships[i].type;
+            g_blue_ships[i].type = lev_data.blue_ships[i].type;
 
-	    for(int d = 0; d < 4; d++)
-                g_blue_ships[i].directions[d] = lev_data.blue_ships[i].directions[d];
+            for(int d = 0; d < 4; d++)
+                    g_blue_ships[i].current_directions[d] = lev_data.blue_ships[i].directions[d];
 
-	    update_children(&g_blue_ships[i]);
+            phy_update_ship_children(&g_blue_ships[i]);
         }
 
     if(g_num_red_ships > 0)
         for(int i = 0; i < g_num_red_ships; i++)
         {
             g_red_ships[i].position = lev_data.red_ships[i].pos;
-	    g_red_ships[i].type = lev_data.red_ships[i].type;
+            g_red_ships[i].type = lev_data.red_ships[i].type;
 
-	    for(int d = 0; d < 4; d++)
-                g_red_ships[i].directions[d] = lev_data.red_ships[i].directions[d];
+            for(int d = 0; d < 4; d++)
+                    g_red_ships[i].current_directions[d] = lev_data.red_ships[i].directions[d];
 
-	    update_children(&g_red_ships[i]);
+            phy_update_ship_children(&g_red_ships[i]);
         }
 }
 
 // All game physics put 'neatly' into a function
 void game_physics()
 {
-    ship_move(&g_blue_ships[0]);
+
+    for(int i = 0; i < g_num_blue_ships; i++)
+    {
+        int dir = phy_get_direction(g_blue_ships[i].current_directions, g_blue_ships[i].last_checked_directions);
+        if(dir != -1 && dir != g_blue_ships[i].pointing)
+        {
+            g_blue_ships[i].pointing = dir;
+            phy_update_ship_children(&g_blue_ships[i]);
+        }
+
+        phy_move_ship(&g_blue_ships[i]);
+    }
 }
 
 // checks for a mouse collision with blue ships, only called when the user left clicks but migtht be useful else where
@@ -473,7 +489,7 @@ void check_mouse_col()
         {
             // turn the newly controlled ship into the player
             for(int i = 0; i < 4; i++)
-                g_blue_ships[g_ship_controlled].directions[i] = false;
+                g_blue_ships[g_ship_controlled].current_directions[i] = false;
 
             g_blue_ships[g_ship_controlled].controlled = true;
         }
@@ -481,7 +497,7 @@ void check_mouse_col()
     {
         // turn the previously controlled ship back into an AI
         for(int i = 0; i < 4; i++)
-            g_blue_ships[prev].directions[i] = false;
+            g_blue_ships[prev].current_directions[i] = false;
 
         g_blue_ships[prev].controlled = false;
 
@@ -489,59 +505,10 @@ void check_mouse_col()
         if(g_ship_controlled != -1)
         {
             for(int i = 0; i < 4; i++)
-                g_blue_ships[g_ship_controlled].directions[i] = false;
+                g_blue_ships[g_ship_controlled].current_directions[i] = false;
 
             g_blue_ships[g_ship_controlled].controlled = true;
         }
-    }
-}
-
-// generates the ship's children
-void update_children(Ship * sh)
-{
-    // All of these are the same, so to save time I'll only add comments to one
-    if(sh->type == SHIP_TYPE_SCOUT)
-    {
-	// set child set
-        sh->children_size = 8;
-
-        for(int i = 0; i < 8; i++)
-        {
-            // this will have to be updated to account for rotation
-	    // names here are key, sh.position is the original position while scout_offsets are the offsets from that original position
-            sh->children_positions[i].x = sh->position.x + scout_offsets[0][i].x;
-            sh->children_positions[i].y = sh->position.y + scout_offsets[0][i].y;
-        }
-    } else if(sh->type == SHIP_TYPE_CARRIER)
-    {
-        sh->children_size = 52;
-
-        for(int i = 0; i < 52; i++)
-        {
-            sh->children_positions[i].x = sh->position.x + carrier_offsets[0][i].x;
-            sh->children_positions[i].y = sh->position.y + carrier_offsets[0][i].y;
-        }
-    } else if(sh->type == SHIP_TYPE_WARSHIP)
-    {
-        sh->children_size = 50;
-
-        for(int i = 0; i < 50; i++)
-        {
-            sh->children_positions[i].x = sh->position.x + warship_offsets[0][i].x;
-            sh->children_positions[i].y = sh->position.y + warship_offsets[0][i].y;
-        }
-    }
-}
-
-// Moves the ship according to sh.directions
-void ship_move(Ship * sh)
-{
-    if(sh->directions[0] || sh->directions[1] || sh->directions[2] || sh->directions[3])
-    {
-        sh->position.x++;
-
-        for(int i = 0; i < sh->children_size; i++)
-            sh->children_positions[i].x++;
     }
 }
 
@@ -680,9 +647,9 @@ void keyboard_callback(GLFWwindow * window, int key, int scancode, int action, i
                 if(g_ship_controlled >= 0)
                 {
                     if(action == GLFW_PRESS)
-                        g_blue_ships[g_ship_controlled].directions[0] = true;
+                        g_blue_ships[g_ship_controlled].current_directions[0] = true;
                     else if(action == GLFW_RELEASE)
-                        g_blue_ships[g_ship_controlled].directions[0] = false;
+                        g_blue_ships[g_ship_controlled].current_directions[0] = false;
                 }
 
                 break;
@@ -691,9 +658,9 @@ void keyboard_callback(GLFWwindow * window, int key, int scancode, int action, i
                 if(g_ship_controlled >= 0)
                 {
                     if(action == GLFW_PRESS)
-                        g_blue_ships[g_ship_controlled].directions[1] = true;
+                        g_blue_ships[g_ship_controlled].current_directions[1] = true;
                     else if(action == GLFW_RELEASE)
-                        g_blue_ships[g_ship_controlled].directions[1] = false;
+                        g_blue_ships[g_ship_controlled].current_directions[1] = false;
                 }
 
                 break;
@@ -702,9 +669,9 @@ void keyboard_callback(GLFWwindow * window, int key, int scancode, int action, i
                 if(g_ship_controlled >= 0)
                 {
                     if(action == GLFW_PRESS)
-                        g_blue_ships[g_ship_controlled].directions[2] = true;
+                        g_blue_ships[g_ship_controlled].current_directions[2] = true;
                     else if(action == GLFW_RELEASE)
-                        g_blue_ships[g_ship_controlled].directions[2] = false;
+                        g_blue_ships[g_ship_controlled].current_directions[2] = false;
                 }
 
                 break;
@@ -713,9 +680,9 @@ void keyboard_callback(GLFWwindow * window, int key, int scancode, int action, i
                 if(g_ship_controlled >= 0)
                 {
                     if(action == GLFW_PRESS)
-                        g_blue_ships[g_ship_controlled].directions[3] = true;
+                        g_blue_ships[g_ship_controlled].current_directions[3] = true;
                     else if(action == GLFW_RELEASE)
-                        g_blue_ships[g_ship_controlled].directions[3] = false;
+                        g_blue_ships[g_ship_controlled].current_directions[3] = false;
                 }
 
                 break;
