@@ -14,8 +14,10 @@ typedef struct
     vec2 children_positions[52];
 
     int children_size;
+    int pointing;
 
-    bool directions[4];
+    bool last_checked_directions[4];
+    bool current_directions[4];
     bool moving;
     bool controlled;
 
