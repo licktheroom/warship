@@ -26,14 +26,14 @@ struct level_data
 
 static const struct level_data lev_data =
 {
-    .blue_ship_n = 1,
+    .blue_ship_n = 3,
     .red_ship_n = 0,
 
     .blue_ships =
     {
-        {.pos = {.x = 0, .y = 2}, .type = SHIP_TYPE_SCOUT, .directions = {false, false, false, false}},
-        {.pos = {.x = 0, .y = 0}, .type = SHIP_TYPE_NONE, .directions = {false, false, false, false}},
-        {.pos = {.x = 0, .y = 0}, .type = SHIP_TYPE_NONE, .directions = {false, false, false, false}},
+        {.pos = {.x = 5, .y = 2}, .type = SHIP_TYPE_SCOUT, .directions = {false, false, false, false}},
+        {.pos = {.x = 5, .y = 7}, .type = SHIP_TYPE_WARSHIP, .directions = {false, false, false, false}},
+        {.pos = {.x = 5, .y = 10}, .type = SHIP_TYPE_CARRIER, .directions = {false, false, false, false}},
         {.pos = {.x = 0, .y = 0}, .type = SHIP_TYPE_NONE, .directions = {false, false, false, false}},
         {.pos = {.x = 0, .y = 0}, .type = SHIP_TYPE_NONE, .directions = {false, false, false, false}},
         {.pos = {.x = 0, .y = 0}, .type = SHIP_TYPE_NONE, .directions = {false, false, false, false}},
