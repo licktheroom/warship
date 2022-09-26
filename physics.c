@@ -1,16 +1,15 @@
 // Copyright (C) 2022  licktheroom //
 
-#include "include/physics.h"
+// TODO: Update comments.                                   //
+// TODO: Think of a better naming scheme for the functions. //
 
 #include <stdbool.h>
 
-#include "include/structs.h"
 #include "include/ship_offsets.h"
 
 // ship physics
 
-// generates a ship
-void phy_update_ship_children(Ship * sh)
+void ship_update_childern(Ship * sh)
 {
     // All of these are the same, so to save time I'll only add comments to one
     if(sh->type == SHIP_TYPE_SCOUT)
@@ -18,7 +17,7 @@ void phy_update_ship_children(Ship * sh)
 	// set child set
         sh->children_size = 8;
 
-        for(int i = 0; i < 8; i++)
+        for(uint i = 0; i < 8; i++)
         {
             // this will have to be updated to account for rotation
             // names here are key, sh.position is the original position while scout_offsets are the offsets from that original position
@@ -29,7 +28,7 @@ void phy_update_ship_children(Ship * sh)
     {
         sh->children_size = 52;
 
-        for(int i = 0; i < 52; i++)
+        for(uint i = 0; i < 52; i++)
         {
             sh->children_positions[i].x = sh->position.x + carrier_offsets[sh->pointing][i].x;
             sh->children_positions[i].y = sh->position.y + carrier_offsets[sh->pointing][i].y;
@@ -38,7 +37,7 @@ void phy_update_ship_children(Ship * sh)
     {
         sh->children_size = 50;
 
-        for(int i = 0; i < 50; i++)
+        for(uint i = 0; i < 50; i++)
         {
             sh->children_positions[i].x = sh->position.x + warship_offsets[sh->pointing][i].x;
             sh->children_positions[i].y = sh->position.y + warship_offsets[sh->pointing][i].y;
@@ -46,21 +45,20 @@ void phy_update_ship_children(Ship * sh)
     }
 }
 
-// moves a ship
-void phy_move_ship(Ship * sh)
+void ship_physics(Ship * sh)
 {
     if(sh->current_directions[0])
     {
         sh->position.y--;
 
-        for(int i = 0; i < sh->children_size; i++)
+        for(uint i = 0; i < sh->children_size; i++)
             sh->children_positions[i].y--;
 
     } else if(sh->current_directions[1])
     {
         sh->position.y++;
 
-        for(int i = 0; i < sh->children_size; i++)
+        for(uint i = 0; i < sh->children_size; i++)
             sh->children_positions[i].y++;
     }
 
@@ -68,20 +66,19 @@ void phy_move_ship(Ship * sh)
     {
         sh->position.x--;
 
-        for(int i = 0; i < sh->children_size; i++)
+        for(uint i = 0; i < sh->children_size; i++)
             sh->children_positions[i].x--;
 
     } else if(sh->current_directions[3])
     {
         sh->position.x++;
 
-        for(int i = 0; i < sh->children_size; i++)
+        for(uint i = 0; i < sh->children_size; i++)
             sh->children_positions[i].x++;
     }
 }
 
-// calculates the direction of a ship
-int phy_get_direction(bool current[4], bool last_checked[4])
+int ship_current_direction(bool current[4], bool last_checked[4])
 {
     // check if this is even needed
     if(current[0] == last_checked[0] && current[1] == last_checked[1] && current[2] == last_checked[2] && current[3] == last_checked[3])
@@ -117,4 +114,20 @@ int phy_get_direction(bool current[4], bool last_checked[4])
         return 0;
 
     return -1;
+}
+
+// Projectiles //
+
+Proj proj_create(Ship * s, bool team)
+{
+    Proj a;
+
+    a.position = s->position;
+    a.dir = s->pointing;
+    a.team = team;
+    a.dist_traveled = 0;
+
+    a.parent = s;
+
+    return a;
 }
