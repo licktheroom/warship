@@ -3,7 +3,7 @@
 #ifndef SHIP_OFFSET_HEADER
 #define SHIP_OFFSET_HEADER
 
-#include "vector.h"
+#include "engine.h"
 
 /** SCOUT **/
 /**
