@@ -16,36 +16,37 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/gpl-3.0.txt>.
  *
  *
- * Version 0.0.1
+ * Version 0.1.6
  *
- * This will remain version 0.0.1 until it has somewhat caught upto the original SDL version.
+ * Version scheme:
+ *      0.1 = Most basic systems are in place and functional.
+ *      0.2 = Everything to do with ships and bullets are finished.
+ *      0.3 = Islands, home bases, and gamemodes are finished.
+ *      0.4 = Island bases and special events are finished.
+ *      0.5 = Dialog, settings, and menus are finished.
+ *      0.6 = Both team's A.Is are finished.
+ *      0.7 = Multi-threading and multi-platform support.
+ *      0.8 = 1/3 of main missions finished.
+ *      0.9 = 2/3 of main missions finished.
+ *      1.0 = All missions are finished.
  *
- * Huge thanks to learnopengl.com!
+ *      0.0.n
+ *      n = The number of weeks spent on this version.
+ *      0.4.17 = 17 weeks have been spent on version 0.4
  *
- * I keep forgetting to add comments to my code.
+ * Dates are in day/month/year
  *
- * Use options like this:
- *      make CFLAGS=-D<option>
+ * TODO 25/9/2022: Realize I'm a bad programmer.
  *
- * To use more than one option:
- *      make CFLAGS=-D<option> CFLAGS+=<option2> CFLAGS+=<option3>
- *
- * Options:
-        NO_TERMINAL - forces logging to file
- *
+ * TODO 25/9/2022: Rewrite comments in main.c, gotta make them look nice like in settings.c
 **/
 
 /* Include non-standerd headers */
 #include "include/glad/gl.h"
 #include <GLFW/glfw3.h>
 
-#include "include/vector.h"
-#include "include/structs.h"
-#include "include/enums.h"
 #include "include/ship_offsets.h"
 #include "include/level_data.h"
-#include "include/logging.h"
-#include "include/physics.h"
 
 #include "include/shaders/vertex.h"
 #include "include/shaders/fragment.h"
@@ -55,13 +56,15 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdbool.h>
+#include <string.h>
 
 /* Static values */
 
 static FILE * log_file;
 
-static unsigned int VAO, VBO, EBO, s_program;
-static unsigned int vertex_uniform_size;
+static uint VAO, VBO, EBO, s_program;
+static uint vertex_uniform_size;
+static uint g_phy_tick;
 
 static int g_state;
 static vec2 g_scn;
@@ -74,13 +77,16 @@ static int g_ship_controlled;
 static Ship g_blue_ships[25] = {0};
 static Ship g_red_ships[25] = {0};
 
-static int g_num_blue_ships, g_num_red_ships;
+static Proj g_proj[1000] = {0};
+
+static cint g_num_blue_ships, g_num_red_ships;
+static uint g_num_proj;
 
 /* Functions */
 
 // clean up
 
-void clean_up(int n);
+void clean_up(const char * error);
 
 // loading
 
@@ -94,11 +100,13 @@ void load_level(int level_n);
 
 void game_physics();
 
-void check_mouse_col();
+// TODO 25/9/2022: Move these to physics.c
+void move_proj(Proj * pro);
+bool proj_collision(Proj * pro);
 
 // rendering
 
-void update_buffer(int which);
+void update_buffer();
 
 // callbacks
 
@@ -118,6 +126,10 @@ int main()
     g_scn.x = 1200;
     g_scn.y = 600;
 
+    g_phy_tick = 0;
+
+    g_num_proj = 0;
+
     g_pixel_scale = 1.0; // pixel scale, used to be known as pixel size, dictates how big each pixel should be
     g_state = 1;
 
@@ -125,17 +137,29 @@ int main()
 
     load_level(0);
 
-#ifndef NO_TERMINAL
-    log_file = LOGS_get_log_file(0);
+    if(settings_generate())
+    {
+        char * log = settings_get("output");
+
+        if(log)
+        {
+            if(strcmp(log, "console") == 0)
+                log_file = stdout;
+            else if(strcmp(log, "file"))
+            {
+                log_file = fopen("logs.txt", "w");
+
+                if(!log_file)
+                    clean_up("Could not open logs.txt");
+            } else
+                clean_up("Setting \"output\" was invalid.");
+        } else
+            clean_up("Setting \"output\" was not found.");
+    } else
+        clean_up("Setting cache was not able to be generated.");
 
     if(log_file == NULL)
-        clean_up(6);
-#else
-    log_file = LOGS_get_log_file(2);
-
-    if(log_file == NULL)
-        clean_up(6);
-#endif
+        clean_up("Var \"log_file\" is NULL");
 
     fprintf(log_file, "\nWarship  Copyright (C) 2022  licktheroom\nThis program comes with ABSOLUTELY NO WARRANTY; for details please see LICENSE.\nThis is free software, and you are welcome to redistribute it\nunder certain conditions; please see LICENSE.\n\n");
 
@@ -146,13 +170,13 @@ int main()
     double app_start, start, finish;
 
     // create window
-    fprintf(log_file, "Starting Warship v0.0.1 by licktheroom.\n\n");
+    fprintf(log_file, "Starting Warship v0.1.6 by licktheroom.\n\n");
     fprintf(log_file, "Creating window... ");
     fflush(log_file);
 
     app_start = start = glfwGetTime();
 
-    GLFWwindow * window = create_window(g_scn.x, g_scn.y, "Warship v0.0.1");
+    GLFWwindow * window = create_window(g_scn.x, g_scn.y, "Warship v0.1.6");
 
     finish = glfwGetTime();
 
@@ -190,6 +214,12 @@ int main()
 
     double phy_beginning, phy_current;
 
+    // assume you are using the dvorak layout and press Q
+    // glfw says you pressed X because thats where X is in qwerty
+    // this code prints Q when using dvorak and X in qwerty
+    //
+    // fprintf(log_file, "%s\n", glfwGetKeyName(GLFW_KEY_X, glfwGetKeyScancode(GLFW_KEY_X)));
+
     phy_beginning = glfwGetTime();
 
     while(!glfwWindowShouldClose(window))
@@ -215,22 +245,8 @@ int main()
         glClearColor(0.0f, 0.0f, 0.098f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // render blue team
         update_buffer(0);
 
-        glUniform1i(glGetUniformLocation(s_program, "color"), 1);
-        glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0, vertex_uniform_size);
-
-        // render red team
-        update_buffer(1);
-
-        glUniform1i(glGetUniformLocation(s_program, "color"), 0);
-        glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0, vertex_uniform_size);
-
-        // render mouse
-        update_buffer(2);
-
-        glUniform1i(glGetUniformLocation(s_program, "color"), 2);
         glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0, vertex_uniform_size);
 
         // others
@@ -257,14 +273,18 @@ int main()
 
     fprintf(log_file, "\n\nApp was alive for: %f seconds\n", finish-app_start);
 
-    clean_up(0);
+    clean_up(NULL);
 }
 
 /* Functions */
 
 // Clear all data and close the app
-void clean_up(int n)
+void clean_up(const char * error)
 {
+    settings_clear();
+
+    fprintf(stdout, "HI\n");
+
     // OpenGL buffers
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
@@ -275,14 +295,14 @@ void clean_up(int n)
     glfwTerminate();
 
     // report exit status
-    if(n > 0)
-        fprintf(log_file, "There was an error, exiting with code: %d\nPlease refer to \"error_codes.txt\".\n", n);
-    else
+    if(!error)
         fprintf(log_file, "Exit successful.\n");
+    else
+        fprintf(log_file, "There was an error:\n%s\n", error);
 
     fclose(log_file);
 
-    exit(n);
+    exit(0);
 }
 
 // Creates a window
@@ -296,18 +316,20 @@ GLFWwindow * create_window(int size_x, int size_y, char * name)
 
     // supposed to turn off vsync
     // it's up to the drivers if they respect this setting
+    // everyone turns this off anyway, right?
+    // i'll turn this into a setting later
     glfwSwapInterval(0);
 
     // create window
     GLFWwindow* window = glfwCreateWindow(size_x, size_y, name, NULL, NULL);
     if(!window)
-        clean_up(1);
+        clean_up("Could not create window.");
 
     glfwMakeContextCurrent(window);
 
     // start gl
     if(!gladLoadGL(glfwGetProcAddress))
-        clean_up(2);
+        clean_up("Could not start OpenGL.");
 
     glViewport(0, 0, size_x, size_y);
 
@@ -368,7 +390,14 @@ void create_shader_program()
 
     glGetShaderiv(v_shader, GL_COMPILE_STATUS, &success);
     if(!success)
-        clean_up(3);
+    {
+        char log[512];
+        glGetShaderInfoLog(v_shader, 512, NULL, log);
+
+        fprintf(log_file, "%s\n", log);
+
+        clean_up("Could not compile vertex shader.");
+    }
 
     // Fragment Shader
     f_shader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -378,7 +407,14 @@ void create_shader_program()
 
     glGetShaderiv(f_shader, GL_COMPILE_STATUS,  &success);
     if(!success)
-        clean_up(4);
+    {
+        char log[512];
+        glGetShaderInfoLog(v_shader, 512, NULL, log);
+
+        fprintf(log_file, "%s\n", log);
+
+        clean_up("Could not compile fragment shader.");
+    }
 
     // Program
     s_program = glCreateProgram();
@@ -389,7 +425,7 @@ void create_shader_program()
 
     glGetProgramiv(s_program, GL_LINK_STATUS, &success);
     if(!success)
-        clean_up(5);
+        clean_up("Could not link program.");
 
     // Finishing details
     glUseProgram(s_program);
@@ -407,27 +443,53 @@ void load_level(int level_n)
     g_num_red_ships = lev_data.red_ship_n;
 
     if(g_num_blue_ships > 0)
-        for(int i = 0; i < g_num_blue_ships; i++)
+        for(uint i = 0; i < g_num_blue_ships; i++)
         {
             g_blue_ships[i].position = lev_data.blue_ships[i].pos;
             g_blue_ships[i].type = lev_data.blue_ships[i].type;
 
-            for(int d = 0; d < 4; d++)
+            for(uint d = 0; d < 4; d++)
                     g_blue_ships[i].current_directions[d] = lev_data.blue_ships[i].directions[d];
 
-            phy_update_ship_children(&g_blue_ships[i]);
+            int dir = ship_current_direction(g_blue_ships[i].current_directions, g_blue_ships[i].last_checked_directions);
+            if(dir != -1 && dir != g_blue_ships[i].pointing)
+                g_blue_ships[i].pointing = dir;
+
+            ship_update_childern(&g_blue_ships[i]);
+
+            if(g_blue_ships[i].type == SHIP_TYPE_SCOUT)
+                g_blue_ships[i].hp = 3;
+            else if(g_blue_ships[i].type == SHIP_TYPE_WARSHIP)
+                g_blue_ships[i].hp = 6;
+            else if(g_blue_ships[i].type == SHIP_TYPE_CARRIER)
+                g_blue_ships[i].hp = 5;
+            else
+                g_blue_ships[i].hp = 0;
         }
 
     if(g_num_red_ships > 0)
-        for(int i = 0; i < g_num_red_ships; i++)
+        for(uint i = 0; i < g_num_red_ships; i++)
         {
             g_red_ships[i].position = lev_data.red_ships[i].pos;
             g_red_ships[i].type = lev_data.red_ships[i].type;
 
-            for(int d = 0; d < 4; d++)
+            for(uint d = 0; d < 4; d++)
                     g_red_ships[i].current_directions[d] = lev_data.red_ships[i].directions[d];
 
-            phy_update_ship_children(&g_red_ships[i]);
+            int dir = ship_current_direction(g_red_ships[i].current_directions, g_red_ships[i].last_checked_directions);
+            if(dir != -1 && dir != g_red_ships[i].pointing)
+                g_red_ships[i].pointing = dir;
+
+            ship_update_childern(&g_red_ships[i]);
+
+            if(g_red_ships[i].type == SHIP_TYPE_SCOUT)
+                g_red_ships[i].hp = 3;
+            else if(g_red_ships[i].type == SHIP_TYPE_WARSHIP)
+                g_red_ships[i].hp = 6;
+            else if(g_red_ships[i].type == SHIP_TYPE_CARRIER)
+                g_red_ships[i].hp = 5;
+            else
+                g_red_ships[i].hp = 0;
         }
 }
 
@@ -435,20 +497,72 @@ void load_level(int level_n)
 void game_physics()
 {
 
-    for(int i = 0; i < g_num_blue_ships; i++)
+    // ships
+    for(uint i = 0; i < g_num_blue_ships; i++)
     {
-        int dir = phy_get_direction(g_blue_ships[i].current_directions, g_blue_ships[i].last_checked_directions);
+        int dir = ship_current_direction(g_blue_ships[i].current_directions, g_blue_ships[i].last_checked_directions);
         if(dir != -1 && dir != g_blue_ships[i].pointing)
         {
             g_blue_ships[i].pointing = dir;
-            phy_update_ship_children(&g_blue_ships[i]);
+            ship_update_childern(&g_blue_ships[i]);
         }
 
-        phy_move_ship(&g_blue_ships[i]);
+        if(g_blue_ships[i].type == SHIP_TYPE_SCOUT || g_phy_tick%2 == 0)
+            ship_physics(&g_blue_ships[i]);
     }
+
+    // projectiles
+    uint deleted = 0;
+
+    for(uint i = 0; i < g_num_proj; i++)
+    {
+        move_proj(&g_proj[i]);
+
+        bool collided = proj_collision(&g_proj[i]);
+
+        if(collided)
+            deleted++;
+        else
+            g_proj[i-deleted] = g_proj[i];
+    }
+
+    g_num_proj -= deleted;
+
+    g_phy_tick++;
 }
 
-// checks for a mouse collision with blue ships, only called when the user left clicks but migtht be useful else where
+// moves a projectile
+void move_proj(Proj * pro)
+{
+    if(pro->dir == 0 || pro->dir == 1 || pro->dir == 7)
+        pro->position.x++;
+    else if(pro->dir == 3 || pro->dir == 4 || pro->dir == 5)
+        pro->position.x--;
+
+    if(pro->dir == 1 || pro->dir == 2 || pro->dir == 3)
+        pro->position.y++;
+    else if(pro->dir == 5 || pro->dir == 6 || pro->dir == 7)
+        pro->position.y--;
+}
+
+// handles projectile collisions
+// this includes dealing damages whe hitting a ship
+bool proj_collision(Proj * pro)
+{
+    // board bounds
+    if(pro->position.x < 0)
+        return true;
+    else if(pro->position.x > 100)
+        return true;
+    else if(pro->position.y < 0)
+        return true;
+    else if(pro->position.y > 100)
+        return true;
+
+    return false;
+}
+
+// checks for a mouse collision with blue ships
 void check_mouse_col()
 {
     bool changed = false;
@@ -457,11 +571,11 @@ void check_mouse_col()
     g_ship_controlled = -1;
 
     // loop through blue ships
-    for(int i = 0; i < g_num_blue_ships; i++)
-        if(VEC_dist(g_mouse_pos, g_blue_ships[i].position) <= 20)
+    for(uint i = 0; i < g_num_blue_ships; i++)
+        if(v2_distance(g_mouse_pos, g_blue_ships[i].position) <= 20)
         {
             // check for root collision
-            if(VEC_eq(g_mouse_pos, g_blue_ships[i].position))
+            if(g_mouse_pos.x == g_blue_ships[i].position.x && g_mouse_pos.y == g_blue_ships[i].position.y)
             {
                 g_ship_controlled = i;
                 changed = true;
@@ -469,8 +583,8 @@ void check_mouse_col()
             }
 
             // check for children collision
-            for(int d = 0; d < g_blue_ships[i].children_size; d++)
-                if(VEC_eq(g_mouse_pos, g_blue_ships[i].children_positions[d]))
+            for(uint d = 0; d < g_blue_ships[i].children_size; d++)
+                if(g_mouse_pos.x == g_blue_ships[i].children_positions[d].x && g_mouse_pos.y == g_blue_ships[i].children_positions[d].y)
                 {
                     g_ship_controlled = i;
                     changed = true;
@@ -488,7 +602,7 @@ void check_mouse_col()
         if(g_ship_controlled != -1)
         {
             // turn the newly controlled ship into the player
-            for(int i = 0; i < 4; i++)
+            for(uint i = 0; i < 4; i++)
                 g_blue_ships[g_ship_controlled].current_directions[i] = false;
 
             g_blue_ships[g_ship_controlled].controlled = true;
@@ -496,7 +610,7 @@ void check_mouse_col()
     } else if(g_ship_controlled != prev)
     {
         // turn the previously controlled ship back into an AI
-        for(int i = 0; i < 4; i++)
+        for(uint i = 0; i < 4; i++)
             g_blue_ships[prev].current_directions[i] = false;
 
         g_blue_ships[prev].controlled = false;
@@ -504,7 +618,7 @@ void check_mouse_col()
         // turn the newly controlled ship into the player
         if(g_ship_controlled != -1)
         {
-            for(int i = 0; i < 4; i++)
+            for(uint i = 0; i < 4; i++)
                 g_blue_ships[g_ship_controlled].current_directions[i] = false;
 
             g_blue_ships[g_ship_controlled].controlled = true;
@@ -513,65 +627,80 @@ void check_mouse_col()
 }
 
 // updates uniform data in the vertex shader
-void update_buffer(int which)
+void update_buffer()
 {
-    vertex_uniform_size = 0;
+    // long but detailed names
+    uint total_blue_ship_children, total_red_ship_children;
+    total_blue_ship_children = total_red_ship_children = 0;
 
-    // doing this is the fastest way to do this, luckily it doesn't need to be cleared each time
+    // name
     char name[30];
 
-    if(which == 0 || which == 1)
+    // blues
+    for(uint i = 0; i < g_num_blue_ships; i++)
     {
-        // forgot why I called this con, but it's used to switch between blue and red ships
-        int con;
+        // the stupid why to tell gl where in a tabel to put data
+        // we must add total_blue_ship_children to i, otherwise we will overwrite the previous ship's children
+        sprintf(name, "pos[%d]", i + total_blue_ship_children);
 
-	// that switch happens here
-        if(which == 0)
-            con = g_num_blue_ships;
-        else
-            con = g_num_red_ships;
+        glUniform3i(glGetUniformLocation(s_program, name), g_blue_ships[i].position.x * 10, g_blue_ships[i].position.y * 10, 1);
 
-        for(int i = 0; i < con; i++)
+        for(uint d = 0; d < g_blue_ships[i].children_size; d++)
         {
-            // set ship
-            Ship tmp;
+            // we add 1 to make sure we don't overwrite the root position
+            sprintf(name, "pos[%d]", d + i + total_blue_ship_children + 1);
 
-            if(which == 0)
-                tmp = g_blue_ships[i];
-            else
-                tmp = g_red_ships[i];
-
-	    // if the ship actually exists
-            if(tmp.type != SHIP_TYPE_NONE)
-            {
-		// dumb string stuff
-                sprintf(name, "pos[%d]", vertex_uniform_size);
-
-		// set the uniform for the root position
-                glUniform2i(glGetUniformLocation(s_program, name), tmp.position.x * 10, tmp.position.y * 10);
-
-                vertex_uniform_size++;
-
-		// the same as above but for the ship's children
-                for(int d = 0; d < tmp.children_size; d++)
-                {
-                    sprintf(name, "pos[%d]", vertex_uniform_size);
-
-                    glUniform2i(glGetUniformLocation(s_program, name), tmp.children_positions[d].x * 10, tmp.children_positions[d].y * 10);
-
-                    vertex_uniform_size++;
-                }
-            }
+            glUniform3i(glGetUniformLocation(s_program, name), g_blue_ships[i].children_positions[d].x * 10, g_blue_ships[i].children_positions[d].y * 10, 1);
         }
-    } else
-    {
-	// mouse
-        sprintf(name, "pos[0]");
 
-        glUniform2i(glGetUniformLocation(s_program, name), g_mouse_pos.x * 10, g_mouse_pos.y * 10);
-
-        vertex_uniform_size++;
+        total_blue_ship_children += g_blue_ships[i].children_size;
     }
+
+    vertex_uniform_size = g_num_blue_ships + total_blue_ship_children;
+
+    // reds
+    for(uint i = 0; i < g_num_red_ships; i++)
+    {
+        // everything is the same as above but this time we need to add vertex_uniform_size
+        sprintf(name, "pos[%d]", i + vertex_uniform_size + total_red_ship_children);
+
+        glUniform3i(glGetUniformLocation(s_program, name), g_red_ships[i].position.x * 10, g_red_ships[i].position.y * 10, 0);
+
+        for(uint d = 0; d < g_red_ships[i].children_size; d++)
+        {
+            // same as the blues
+            sprintf(name, "pos[%d]", d + i + total_red_ship_children + vertex_uniform_size + 1);
+
+            glUniform3i(glGetUniformLocation(s_program, name), g_red_ships[i].children_positions[d].x * 10, g_red_ships[i].children_positions[d].y * 10, 0);
+        }
+
+        total_red_ship_children += g_red_ships[i].children_size;
+    }
+
+    vertex_uniform_size += g_num_red_ships + total_red_ship_children;
+
+    // bullets
+    for(uint i = 0; i < g_num_proj; i++)
+    {
+        sprintf(name, "pos[%d]", vertex_uniform_size + i);
+
+        uint color = 0;
+        if(g_proj[i].team == 0)
+            color = 3;
+        else
+            color = 4;
+
+        glUniform3i(glGetUniformLocation(s_program, name), g_proj[i].position.x * 10, g_proj[i].position.y * 10, color);
+    }
+
+    vertex_uniform_size += g_num_proj;
+
+    // mouse
+    sprintf(name, "pos[%d]", vertex_uniform_size);
+
+    glUniform3i(glGetUniformLocation(s_program, name), g_mouse_pos.x * 10, g_mouse_pos.y * 10, 2);
+
+    vertex_uniform_size++;
 }
 
 // The Framebuffer Size Callback
@@ -639,6 +768,15 @@ void keyboard_callback(GLFWwindow * window, int key, int scancode, int action, i
             case GLFW_KEY_ESCAPE:
                 if(action == GLFW_PRESS)
                     glfwSetWindowShouldClose(window, true);
+
+                break;
+
+            case GLFW_KEY_X:
+                if(g_ship_controlled >= 0)
+                {
+                    g_proj[g_num_proj] = proj_create(&g_blue_ships[g_ship_controlled], 0);
+                    g_num_proj++;
+                }
 
                 break;
 
