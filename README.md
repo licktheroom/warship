@@ -1,10 +1,12 @@
 [![Donate](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/licktheroom/donate)
 [![Income](https://img.shields.io/liberapay/receives/licktheroom.svg)](https://liberapay.com/licktheroom)
 
-## Warship v0.0.1
-A strategy game inspired by the Atari 2600. Not inspired by Battleship.  
+## Warship v0.1.6
+A strategy game inspired by the Atari 2600.
 This game also has no textures as an added challenge.  
 Only Linux is supported right now.
+
+I need to update this readme quite a bit.
 ## Build
 ### Linux
 You need: 
