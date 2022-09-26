@@ -4,13 +4,18 @@
 layout (location = 0) in vec2 aPos;
 
 uniform ivec2 scn;
-uniform ivec2 pos[1500];
+uniform ivec3 pos[4001];
 
 uniform float scale;
 
+out float col;
+
 void main()
 {
-    finished += pos[gl_InstanceID];
+    vec2 finished = aPos;
+
+    finished.x += pos[gl_InstanceID].x;
+    finished.y += pos[gl_InstanceID].y;
 
     finished.x *= scale;
     finished.y *= scale;
@@ -19,6 +24,8 @@ void main()
 
     finished.x = -1 + finished.x;
     finished.y = 1 - finished.y;
+
+    col = pos[gl_InstanceID].z;
 
     gl_Position = vec4(finished, 0.0f, 1.0f);
 }
