@@ -1,10 +1,5 @@
 // Copyright (C) 2022  licktheroom //
 
-// TODO 25/9/2022: A function to add a new variable to settings.                                                              //
-// TODO 25/9/2022: A function to remove variables.                                                                            //
-//   TODO 25/9/2022: Add a check to see if any variables have been changed, so we don't write to the file without needing to. //
-//// Possibly a static bool could be used.                                                                                  ////
-
 //   FIXME 25/9/2022: Unable to use tables. //
 //// It can only do the below:  ////
 //// `output console`           ////
@@ -14,7 +9,10 @@
 //// `output { file console }`  ////
 //// Or &&                      ////
 //// `output file && console    ////
+//// Possibly this too:         ////
+//// `output file||console`     ////
 
+#include <alloca.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -37,12 +35,26 @@ struct t_settings
 };
 
 static struct t_settings settings;
+
+static bool settings_changed;
+
 static const char * settings_file_name = "warship-settings.txt";
 
-// TODO 25/9/2022: Make a default list of settings. //
+// Creates a default list of settings. //
 bool settings_create_default()
 {
-    return false;
+    FILE * settings_file = fopen(settings_file_name, "w");
+
+    if(!settings_file)
+        return false;
+
+    // General settings //
+    fprintf(settings_file, "output console\n");
+
+    // Finish //
+    fclose(settings_file);
+
+    return true;
 }
 
 // Generates a list of settings. //
@@ -126,10 +138,10 @@ bool settings_generate()
 
     fclose(settings_file);
 
+    settings_changed = false;
+
     return true;
 }
-
-// TODO 25/9/2022: Make this write to the file. //
 
 // Clears the settings cache and flushes it to the file. //
 void settings_clear()
@@ -137,6 +149,23 @@ void settings_clear()
     // Make sure settings exist. //
     if(settings.first)
     {
+        // Open the file for writing if any settings were changed. //
+        FILE * settings_file;
+        bool should_write = false;
+        if(settings_changed)
+        {
+            settings_file = fopen(settings_file_name, "w");
+
+            if(!settings_file)
+            {
+                fprintf(stdout, "Error: Failed to open \"%s\" for writting. No settings were saved.\n", settings_file_name);
+
+                return;
+            }
+
+            should_write = true;
+        }
+
         // Create two variables. //
         struct t_var * one;
         struct t_var * two = settings.first;
@@ -155,14 +184,18 @@ void settings_clear()
             one = two;
             two = one->next;
 
-            // We have to free the data, the name, and the variable itself to avoid memory leaks. //
-            char * data = one->data;
-            char * name = one->name;
 
-            free(data);
-            free(name);
+            if(should_write)
+                fprintf(settings_file, "%s %s\n", one->name, one->data);
+
+            // We have to free the data, the name, and the variable itself to avoid memory leaks. //
+            free(one->data);
+            free(one->name);
             free(one);
         }
+
+        if(should_write)
+            fclose(settings_file);
 
         settings.last = NULL;
         settings.first = NULL;
@@ -223,6 +256,9 @@ bool settings_set(const char * name, const char * data)
             // If names are the same... //
             if(strcmp(name, one->name) == 0)
             {
+                // To tell if we'll need to write to the file. //
+                settings_changed = true;
+
                 // Free the already allocated memory. //
                 free(one->data);
 
@@ -234,6 +270,96 @@ bool settings_set(const char * name, const char * data)
 
                 return true;
             }
+        }
+    }
+
+    return false;
+}
+
+// Creates a new var in the settings cache. //
+bool settings_create_new_var(const char * name, const char * data)
+{
+    // Make sure settings already exist. Why do this when creating a variable? To prevent any errors when using settings_generate()
+    if(settings.first)
+    {
+        // Allocate the memory for t_var. //
+        struct t_var * new = calloc(1, (sizeof(struct t_var *) * 2) + 8);
+
+        // Allocate the memory for name and data. //
+        new->name = malloc(sizeof(char) * (strlen(name) + 1));
+        new->data = malloc(sizeof(char) * (strlen(data) + 1));
+
+        // Copy the name and data over. //
+        strcpy(new->name, name);
+        strcpy(new->data, data);
+
+        // And place the new var at the end of settings. //
+        settings.last->next = new;
+        settings.last = new;
+
+        settings.n_settings++;
+
+        // Let it know we'll have to write the the file when clearing settings. //
+        settings_changed = true;
+
+        return true;
+    }
+
+    return false;
+}
+
+// Removes a var from the settings cache. //
+bool settings_remove_var(const char * name)
+{
+    // Make sure settings exist. If settings.first and settings.last are the same don't run. This prevents an emtpy cache when it shouldn't be. //
+    if(settings.first || settings.first == settings.last)
+    {
+        // We need three t_vars now! one is current, two is next, and three is previous. //
+        struct t_var * one;
+        struct t_var * two = settings.first;
+        struct t_var * three = settings.first;
+
+        unsigned int i = 0;
+
+        while(true)
+        {
+            if(two == NULL || i == settings.n_settings)
+                return false;
+
+            one = two;
+            two = one->next;
+
+            if(strcmp(name, one->name) == 0)
+            {
+                // If one is the last var in the cache all we need to do is set settings.last to three and three.next to NULL. //
+                if(one == settings.last)
+                {
+                    settings.last = three;
+                    three->next = NULL;
+
+                } else
+                {
+                    // Otherwise one is in the middle of two vars. We set three.next to two and one.next to NULL. //
+                    three->next = two;
+
+                    one->next = NULL;
+                }
+
+                // Finally free the data. //
+                free(one->name);
+                free(one->data);
+                free(one);
+
+                one = NULL;
+
+                // And let settings_clear() know we'll have to write to file. //
+                settings_changed = true;
+
+                return true;
+            }
+
+            // Settings three to one at the end makes sure three is always the parent of one. //
+            three = one;
         }
     }
 
