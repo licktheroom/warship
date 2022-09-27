@@ -145,7 +145,7 @@ int main()
         {
             if(strcmp(log, "console") == 0)
                 log_file = stdout;
-            else if(strcmp(log, "file"))
+            else if(strcmp(log, "file") == 0)
             {
                 log_file = fopen("logs.txt", "w");
 
@@ -282,8 +282,6 @@ int main()
 void clean_up(const char * error)
 {
     settings_clear();
-
-    fprintf(stdout, "HI\n");
 
     // OpenGL buffers
     glDeleteVertexArrays(1, &VAO);
@@ -768,6 +766,18 @@ void keyboard_callback(GLFWwindow * window, int key, int scancode, int action, i
             case GLFW_KEY_ESCAPE:
                 if(action == GLFW_PRESS)
                     glfwSetWindowShouldClose(window, true);
+
+                break;
+
+            case GLFW_KEY_O:
+                if(action == GLFW_PRESS)
+                    settings_set("output", "console");
+
+                break;
+
+            case GLFW_KEY_I:
+                if(action == GLFW_PRESS)
+                    settings_set("output", "file");
 
                 break;
 
