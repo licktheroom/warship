@@ -73,9 +73,12 @@ extern Proj proj_create(Ship * s, bool team); // Creates a projectile. //
 
 extern uint v2_distance(vec2 a, vec2 b); // Distance between two points on a 2D plane. //
 
+extern bool settings_create_default(); // Creates a default list of settings. //
 extern bool settings_generate(); // Generates a list of settings. //
 extern void settings_clear(); // Clears the settings cache and flushes it to the file. //
 extern char * settings_get(const char * name); // Gets a setting's value. //
 extern bool settings_set(const char * name, const char * set); // Sets a value. Does not update the file. //
+extern bool settings_create_new_var(const char * name, const char * data); // Creates a new var in the settings cache. //
+extern bool settings_remove_var(const char * name); // Removes a var from the settings cache. //
 
 #endif
